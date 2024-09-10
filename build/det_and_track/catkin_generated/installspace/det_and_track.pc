@@ -1,0 +1,8 @@
+prefix=/home/anshium/pose/human_tracking_ws/install
+
+Name: det_and_track
+Description: Description of det_and_track
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 
