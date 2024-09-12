@@ -26,35 +26,69 @@ class WheelchairTrajectoryTracker:
         # Initialize the initial heading
         self.initial_heading = None
         self.current_heading = None
+        
+        self.message_counter = 0
 
     def odom_callback(self, data):
-        # Extract position from Odometry message
-        position = data.pose.pose.position
-        self.x_coords.append(position.x)
-        self.y_coords.append(position.y)
+        # Initialize message counter if not already initialized
+        if self.message_counter is None:
+            self.message_counter = 0
         
-        # Compute the heading
-        if len(self.x_coords) > 1:
-            dx = self.x_coords[-1] - self.x_coords[-2]
-            dy = self.y_coords[-1] - self.y_coords[-2]
-            heading = atan2(dy, dx)
-            heading_deg = degrees(heading)
+        # Skip the first N messages
+        skip_messages = 200  # Number of messages to skip
+        if self.message_counter < skip_messages:
+            self.message_counter += 1
         else:
-            heading_deg = 0  # No movement, no heading
         
-        self.headings.append(heading_deg)
-        
-        # Set initial heading if not set
-        if self.initial_heading is None:
-            self.initial_heading = heading_deg
-        
-        # Compute relative heading
-        relative_headings = [heading - self.initial_heading for heading in self.headings]
+            # Extract position from Odometry message
+            position = data.pose.pose.position
+            self.x_coords.append(position.x)
+            self.y_coords.append(position.y)
+            
+            window_size = 5
+            
+            # Ensure we have more than one coordinate to compute a heading
+            if len(self.x_coords) > window_size:
+                # If we have fewer points than the window size, use the available points
+                if len(self.x_coords) < window_size:
+                    window_size = len(self.x_coords) - 1  # Subtract 1 since we need at least 2 points
 
-        self.current_heading = relative_headings[-1]
+                # Compute the deltas for the window size
+                dx_sum = 0
+                dy_sum = 0
+                for i in range(1, window_size + 1 if len(self.x_coords) > window_size else len(self.x_coords)):
+                    dx_sum += self.x_coords[-i] - self.x_coords[-(i + 1)]
+                    dy_sum += self.y_coords[-i] - self.y_coords[-(i + 1)]
 
-        # Generate and publish the plot
-        self.plot_trajectory(relative_headings)
+                # Calculate the average dx and dy
+                avg_dx = dx_sum / window_size
+                avg_dy = dy_sum / window_size
+
+                # Compute the heading using the average deltas
+                heading = atan2(avg_dy, avg_dx)
+                heading_deg = degrees(heading) / 50
+            else:
+                heading_deg = 0  # No movement, no heading
+            
+            self.headings.append(heading_deg)
+            
+            # Set initial heading if not set
+            if self.initial_heading is None:
+                self.initial_heading = heading_deg
+            
+            # Compute cumulative sum of headings
+            cumulative_headings = []
+            cumulative_sum = 0
+            for heading in self.headings:
+                cumulative_sum = (cumulative_sum + heading) % 360
+                cumulative_headings.append(cumulative_sum)
+
+            self.current_heading = cumulative_headings[-1]
+
+            # Generate and publish the plot
+            self.plot_trajectory(cumulative_headings)
+        
+
 
     def plot_trajectory(self, relative_headings):
         # Create a new figure

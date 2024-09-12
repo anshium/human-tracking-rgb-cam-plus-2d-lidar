@@ -364,43 +364,10 @@ class HumanTrajectoryTracker:
                 marker.points.append(p)
 
             # Create an arrow to represent velocity in ROS markers
-            if track_id in self.velocities:
-                velocity = self.velocities[track_id] # sqrt(self.velocities[track_id][0] ** 2 + self.velocities[track_id][0] ** 2)
-                arrow_marker = Marker()
-                arrow_marker.header.frame_id = "base_link"
-                arrow_marker.header.stamp = rospy.Time.now()
-                arrow_marker.ns = "trajectory_velocity"
-                arrow_marker.id = track_id + 1000  # Unique ID for the arrow
-                arrow_marker.type = Marker.ARROW
-                arrow_marker.action = Marker.ADD
-                arrow_marker.pose.orientation.w = atan2(self.velocities[track_id][1], self.velocities[track_id][0])
-                arrow_marker.scale.x = 0.1  # Width of the arrow shaft
-                arrow_marker.scale.y = 0.2  # Width of the arrow head
-                arrow_marker.color.r = 0.0
-                arrow_marker.color.g = 0.0
-                arrow_marker.color.b = 1.0
-                arrow_marker.color.a = 1.0
-
-                # Define the start (current position) and end (based on velocity) of the arrow
-                start_point = Point()
-                start_point.x, start_point.y = trajectory[0]
-                start_point.z = 0
-
-                end_point = Point()
-                end_point.x = start_point.x + velocity[0]
-                end_point.y = start_point.y + velocity[1]
-                end_point.z = 0
-
-                arrow_marker.points.append(start_point)
-                arrow_marker.points.append(end_point)
-
-                self.arrow_markers[track_id] = arrow_marker
-
-                self.marker_pub.publish(arrow_marker)
 
             # Update or publish the trajectory marker
             self.markers[track_id] = marker
-            # self.marker_pub.publish(marker)
+            self.marker_pub.publish(marker)
 
         # Clean up old markers
         for track_id in list(self.markers.keys()):
@@ -413,23 +380,10 @@ class HumanTrajectoryTracker:
                 delete_marker.type = Marker.POINTS
                 delete_marker.action = Marker.DELETE
 
-                # self.marker_pub.publish(delete_marker)
-                del self.markers[track_id]
-                
-        for track_id in list(self.arrow_markers.keys()):
-            if track_id not in valid_track_ids:
-                delete_marker = Marker()
-                delete_marker.header.frame_id = "base_link"
-                delete_marker.header.stamp = rospy.Time.now()
-                delete_marker.ns = "trajectory"
-                delete_marker.id = track_id
-                delete_marker.type = Marker.ARROW
-                delete_marker.action = Marker.DELETE
-
                 self.marker_pub.publish(delete_marker)
-                del self.arrow_markers[track_id]
+                del self.markers[track_id]
         '''
-
+        
         # Matplotlib part: Plot velocity arrows
         for track_id, trajectory in self.trajectories.items():
             if track_id in self.velocities:
@@ -443,12 +397,13 @@ class HumanTrajectoryTracker:
                 ax.quiver(
                     trajectory[0, 0], trajectory[0, 1],  # Starting point (x, y)
                     velocity[0], velocity[1],             # Velocity components (dx, dy)
-                    angles='xy', scale_units='xy', scale=1, color='blue', label=f"Velocity {track_id}"
+                    angles='xy', scale_units='xy', scale=2, color='blue', label=f"Velocity {track_id}"
                 )
 
                 # Add track_id as text next to the marker
                 ax.text(trajectory[0, 0] + 0.1, trajectory[0, 1] + 0.1,  # Adjust the offset for better visibility
                         f"{track_id}", fontsize=9, color='black')
+
 
         # Finalize the plot
         plt.xlabel('X Coordinate')
